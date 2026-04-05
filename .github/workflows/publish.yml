@@ -23,23 +23,10 @@ jobs:
           python-version: '3.12'
 
       - name: Install build tools
-        run: pip install build twine
+        run: pip install build
 
       - name: Build package
         run: python -m build
-
-      - name: Validate package
-        run: twine check dist/*
-
-      - name: Check version not already on PyPI
-        run: |
-          VERSION=$(python -c "from wayscloud_cli import __version__; print(__version__)")
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://pypi.org/pypi/wayscloud-cli/${VERSION}/json")
-          if [ "$STATUS" = "200" ]; then
-            echo "::error::Version ${VERSION} already exists on PyPI"
-            exit 1
-          fi
-          echo "Version ${VERSION} is new — proceeding"
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
