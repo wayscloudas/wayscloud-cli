@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wayscloud-cli"
-version = "0.1.1"
+version = "0.2.1"
 description = "Command-line interface for WAYSCloud — manage VPS, DNS, databases, storage, apps, IoT, and more"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -30,9 +30,13 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://wayscloud.services"
-Documentation = "https://docs.wayscloud.services/integrations/cli"
-Repository = "https://github.com/wayscloudas/wayscloud-cli"
-Issues = "https://github.com/wayscloudas/wayscloud-cli/issues"
+Documentation = "https://docs.wayscloud.services/integrations/#wayscloud-cli"
+Repository = "https://github.com/wayscloudas/wayscloud-provision-api"
+Issues = "https://github.com/wayscloudas/wayscloud-provision-api/issues"
+
+[tool.setuptools.packages.find]
+include = ["wayscloud_cli*"]
+exclude = ["tests*"]
 
 [project.scripts]
 cloud = "wayscloud_cli.__main__:main"
