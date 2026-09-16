@@ -75,7 +75,7 @@ cloud storage credentials
 
 ```bash
 cloud app list
-cloud app create my-app --plan app-basic --region eu
+cloud app create my-app --plan app-basic --region no
 cloud app deploy <id> --image ghcr.io/org/app:latest
 cloud app start <id>
 cloud app stop <id>
