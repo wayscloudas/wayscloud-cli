@@ -30,7 +30,7 @@ def test_version_flag():
 
 # ── Command groups registered ───────────────────────────────────
 
-EXPECTED_GROUPS = ["auth", "vps", "dns", "storage", "db", "redis", "app", "iot", "shell"]
+EXPECTED_GROUPS = ["auth", "vps", "dns", "storage", "db", "redis", "app", "iot", "shell", "impact"]
 
 
 def test_all_command_groups_registered():
@@ -144,3 +144,56 @@ def test_iot_devices_create_has_required_flags():
     assert result.exit_code == 0
     assert "--device-id" in result.output
     assert "--name" in result.output
+
+
+# ── Impact commands ─────────────────────────────────────────────
+
+def test_impact_subgroups_registered():
+    """cloud impact has forest / tree / commitments subgroups."""
+    result = runner.invoke(app, ["impact", "--help"])
+    assert result.exit_code == 0
+    for sub in ("forest", "tree", "commitments"):
+        assert sub in result.output, f"Missing impact subgroup: {sub}"
+
+
+def test_impact_tree_grow_has_count_flag():
+    result = runner.invoke(app, ["impact", "tree", "grow", "--help"])
+    assert result.exit_code == 0
+    assert "--count" in result.output
+    assert "--idempotency-key" in result.output
+
+
+def test_impact_forest_create_help():
+    result = runner.invoke(app, ["impact", "forest", "create", "--help"])
+    assert result.exit_code == 0
+    # Argument should be the forest name; --token override always accepted.
+    assert "--token" in result.output
+
+
+def test_impact_forest_status_has_visualize():
+    result = runner.invoke(app, ["impact", "forest", "status", "--help"])
+    assert result.exit_code == 0
+    assert "--visualize" in result.output
+
+
+def test_impact_forbidden_strings_not_in_help():
+    """Anti-greenwashing wording lock: these strings must NEVER appear
+    anywhere in the impact CLI surface, not even in help text."""
+    forbidden = ["carbon neutral", "offset", "net zero", "Carbon Neutral", "Net Zero"]
+    for sub_path in (
+        ["impact", "--help"],
+        ["impact", "forest", "--help"],
+        ["impact", "tree", "--help"],
+        ["impact", "tree", "grow", "--help"],
+        ["impact", "tree", "inspect", "--help"],
+        ["impact", "tree", "water", "--help"],
+        ["impact", "commitments", "--help"],
+        ["impact", "forest", "status", "--help"],
+        ["impact", "forest", "feed", "--help"],
+    ):
+        result = runner.invoke(app, sub_path)
+        assert result.exit_code == 0, f"help failed for {sub_path}"
+        for s in forbidden:
+            assert s not in result.output, (
+                f"Forbidden string {s!r} appeared in help for {sub_path}"
+            )

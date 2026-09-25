@@ -201,6 +201,130 @@ def list_plans(
     ])
 
 
+@app.command("status")
+def vps_status(
+    vps_id: str = typer.Argument(..., help="VPS ID"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Get real-time VPS status (power, CPU, memory, disk)."""
+    c = get_client(token)
+    data = sdk_call(c.vps.status, vps_id)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print_object(data, [
+            ("power_state", "Power"), ("cpu_usage", "CPU %"),
+            ("memory_used_mb", "Memory Used (MB)"), ("memory_total_mb", "Memory Total (MB)"),
+            ("disk_used_gb", "Disk Used (GB)"), ("disk_total_gb", "Disk Total (GB)"),
+        ])
+
+
+@app.command("update")
+def update_vps(
+    vps_id: str = typer.Argument(..., help="VPS ID"),
+    display_name: Optional[str] = typer.Option(None, "--display-name", help="Display name"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Update VPS metadata (display name)."""
+    c = get_client(token)
+    data = sdk_call(c.vps.update, vps_id, display_name=display_name)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"VPS {vps_id}: updated")
+
+
+@app.command("upgrade")
+def upgrade_vps(
+    vps_id: str = typer.Argument(..., help="VPS ID"),
+    plan: str = typer.Option(..., "--plan", help="New plan code"),
+    confirm: bool = typer.Option(False, "--confirm", help="Skip confirmation"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Upgrade VPS to a higher plan (Norway/Proxmox only)."""
+    if not confirm:
+        print(f"This will upgrade VPS {vps_id} to plan {plan}.")
+        print("Use --confirm to proceed.")
+        raise typer.Exit(code=1)
+
+    c = get_client(token)
+    data = sdk_call(c.vps.upgrade, vps_id, plan)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"VPS {vps_id}: upgrading to {plan}")
+
+
+@app.command("regions")
+def list_regions(
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """List available VPS regions."""
+    c = get_client(token)
+    data = sdk_call(c.vps.regions)
+    if is_json_mode():
+        print_json(data)
+        return
+    regions = data if isinstance(data, list) else []
+    for r in regions:
+        code = r.get("code", r.get("region", ""))
+        name = r.get("name", r.get("label", ""))
+        print(f"  {code:<10} {name}")
+
+
+@app.command("firewall")
+def list_firewall(
+    vps_id: str = typer.Argument(..., help="VPS ID"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """List firewall rules for a VPS."""
+    c = get_client(token)
+    data = sdk_call(c.vps.firewall_rules, vps_id)
+    rules = data if isinstance(data, list) else []
+    if is_json_mode():
+        print_json(rules)
+        return
+    if not rules:
+        print("No firewall rules.")
+        return
+    rows = [{"id": str(r.get("id", ""))[:12], "port": str(r.get("port", "")),
+             "protocol": r.get("protocol", ""), "source": r.get("source", "")}
+            for r in rules]
+    print_table(rows, [("id", "ID", 14), ("port", "Port", 8), ("protocol", "Proto", 6), ("source", "Source", 20)])
+
+
+@app.command("firewall-add")
+def add_firewall(
+    vps_id: str = typer.Argument(..., help="VPS ID"),
+    port: int = typer.Option(..., "--port", help="Port number"),
+    protocol: str = typer.Option("tcp", "--protocol", help="Protocol (tcp/udp)"),
+    source: str = typer.Option("0.0.0.0/0", "--source", help="Source CIDR"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Add a firewall rule to a VPS."""
+    c = get_client(token)
+    data = sdk_call(c.vps.add_firewall_rule, vps_id, port=port, protocol=protocol, source=source)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"Firewall rule added: {protocol}/{port} from {source}")
+
+
+@app.command("firewall-remove")
+def remove_firewall(
+    vps_id: str = typer.Argument(..., help="VPS ID"),
+    rule_id: str = typer.Option(..., "--rule-id", help="Rule ID"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Remove a firewall rule from a VPS."""
+    c = get_client(token)
+    data = sdk_call(c.vps.remove_firewall_rule, vps_id, rule_id)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"Firewall rule {rule_id}: removed")
+
+
 @app.command("os-templates")
 def vps_os_templates(
     token: Optional[str] = typer.Option(None, "--token", help="Override token"),

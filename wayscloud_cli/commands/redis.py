@@ -63,15 +63,6 @@ def instance_info(
     c = get_client(token)
     data = sdk_call(c.redis.get, instance_id)
 
-    # Merge credentials if available
-    try:
-        creds = c.redis.credentials(instance_id)
-        if isinstance(creds, dict):
-            data.update(creds)
-    except Exception as e:
-        import sys
-        print(f"Warning: could not fetch credentials: {e}", file=sys.stderr)
-
     print_object(data, [
         ("id", "ID"), ("name", "Name"), ("plan", "Plan"), ("status", "Status"),
         ("endpoint", "Endpoint"), ("port", "Port"), ("region", "Region"),
@@ -125,3 +116,107 @@ def list_plans(
         ("code", "Plan", 20), ("memory", "Memory (MB)", 12),
         ("connections", "Max Conn", 10), ("price", "Price/mo", 12),
     ])
+
+
+@app.command("regions")
+def list_regions(
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """List available Redis regions."""
+    c = get_client(token)
+    data = sdk_call(c.redis.regions)
+    if is_json_mode():
+        print_json(data)
+        return
+    regions = data if isinstance(data, list) else []
+    for r in regions:
+        code = r.get("code", r.get("region", ""))
+        name = r.get("name", r.get("label", ""))
+        print(f"  {code:<10} {name}")
+
+
+@app.command("restart")
+def restart_instance(
+    instance_id: str = typer.Argument(..., help="Instance ID"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Restart a Redis instance."""
+    c = get_client(token)
+    data = sdk_call(c.redis.restart, instance_id)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"Redis {instance_id}: restarting")
+
+
+@app.command("rotate-credentials")
+def rotate_creds(
+    instance_id: str = typer.Argument(..., help="Instance ID"),
+    confirm: bool = typer.Option(False, "--confirm", help="Skip confirmation"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Rotate Redis credentials. Returns new password."""
+    if not confirm:
+        print("This will generate a new password. Existing connections will need to reconnect.")
+        print("Use --confirm to proceed.")
+        raise typer.Exit(code=1)
+
+    c = get_client(token)
+    data = sdk_call(c.redis.rotate_credentials, instance_id)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"New password: {data.get('password', '(see --json)')}")
+
+
+@app.command("firewall")
+def list_firewall(
+    instance_id: str = typer.Argument(..., help="Instance ID"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """List firewall rules for a Redis instance."""
+    c = get_client(token)
+    data = sdk_call(c.redis.firewall_rules, instance_id)
+    rules = data if isinstance(data, list) else []
+    if is_json_mode():
+        print_json(rules)
+        return
+    if not rules:
+        print("No firewall rules.")
+        return
+    rows = [{"id": str(r.get("id", ""))[:12], "ip": r.get("ip_address", ""),
+             "desc": r.get("description", ""), "created": r.get("created_at", "")[:19]}
+            for r in rules]
+    print_table(rows, [("id", "ID", 14), ("ip", "IP/CIDR", 20),
+                       ("desc", "Description", 24), ("created", "Created", 20)])
+
+
+@app.command("firewall-add")
+def add_firewall(
+    instance_id: str = typer.Argument(..., help="Instance ID"),
+    ip: str = typer.Option(..., "--ip", help="IP address or CIDR"),
+    description: str = typer.Option("", "--description", help="Description"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Add a firewall rule to allow access from a CIDR."""
+    c = get_client(token)
+    data = sdk_call(c.redis.add_firewall_rule, instance_id, ip_address=ip, description=description)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"Firewall rule added: {ip}")
+
+
+@app.command("firewall-remove")
+def remove_firewall(
+    instance_id: str = typer.Argument(..., help="Instance ID"),
+    rule_id: str = typer.Option(..., "--rule-id", help="Rule ID"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Remove a firewall rule."""
+    c = get_client(token)
+    data = sdk_call(c.redis.remove_firewall_rule, instance_id, rule_id)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"Firewall rule {rule_id}: removed")
