@@ -38,6 +38,25 @@ def list_zones(
     ])
 
 
+@app.command("zones-info")
+def zone_info(
+    zone_name: str = typer.Argument(..., help="Zone name"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Show details for a DNS zone."""
+    c = get_client(token)
+    data = sdk_call(c.dns.get, zone_name)
+    if is_json_mode():
+        print_json(data)
+    else:
+        from ..output import print_object
+        print_object(data, [
+            ("name", "Name"), ("status", "Status"), ("zone_type", "Type"),
+            ("record_count", "Records"), ("dnssec_enabled", "DNSSEC"),
+            ("created_at", "Created"),
+        ])
+
+
 @app.command("zones-create")
 def create_zone(
     name: str = typer.Argument(..., help="Zone name"),
@@ -169,3 +188,73 @@ def delete_record(
         print_json(data)
     else:
         print(f"Record {record_id}: deleted")
+
+
+@app.command("dnssec-status")
+def dnssec_status(
+    zone_name: str = typer.Argument(..., help="Zone name"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Show DNSSEC status for a zone."""
+    c = get_client(token)
+    data = sdk_call(c.dns.dnssec_status, zone_name)
+    if is_json_mode():
+        print_json(data)
+    else:
+        from ..output import print_object
+        print_object(data, [
+            ("enabled", "Enabled"), ("ds_records", "DS Records"),
+            ("algorithm", "Algorithm"), ("key_tag", "Key Tag"),
+        ])
+
+
+@app.command("dnssec-activate")
+def dnssec_activate(
+    zone_name: str = typer.Argument(..., help="Zone name"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Activate DNSSEC for a zone."""
+    c = get_client(token)
+    data = sdk_call(c.dns.dnssec_activate, zone_name)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"DNSSEC activated for {zone_name}.")
+
+
+@app.command("dnssec-deactivate")
+def dnssec_deactivate(
+    zone_name: str = typer.Argument(..., help="Zone name"),
+    confirm: bool = typer.Option(False, "--confirm", help="Skip confirmation"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Deactivate DNSSEC for a zone."""
+    if not confirm:
+        print(f"This will deactivate DNSSEC for {zone_name}.")
+        print("Use --confirm to proceed.")
+        raise typer.Exit(code=1)
+
+    c = get_client(token)
+    data = sdk_call(c.dns.dnssec_deactivate, zone_name)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"DNSSEC deactivated for {zone_name}.")
+
+
+@app.command("statistics")
+def zone_statistics(
+    zone_name: str = typer.Argument(..., help="Zone name"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Show zone statistics (query counts)."""
+    c = get_client(token)
+    data = sdk_call(c.dns.statistics, zone_name)
+    if is_json_mode():
+        print_json(data)
+    else:
+        from ..output import print_object
+        print_object(data, [
+            ("total_queries", "Total Queries"), ("queries_today", "Queries Today"),
+            ("record_count", "Records"),
+        ])

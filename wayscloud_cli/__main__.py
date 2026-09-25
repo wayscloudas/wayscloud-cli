@@ -18,8 +18,10 @@ from .commands.dns import app as dns_app
 from .commands.storage import app as storage_app
 from .commands.db import app as db_app
 from .commands.redis import app as redis_app
+from .commands.k8s import app as k8s_app
 from .commands.app import app as app_platform_app
 from .commands.iot import app as iot_app
+from .commands.impact import app as impact_app
 
 app = typer.Typer(
     name="cloud",
@@ -57,9 +59,11 @@ app.add_typer(dns_app, name="dns", help="DNS zones and records")
 app.add_typer(storage_app, name="storage", help="Object storage (S3)")
 app.add_typer(db_app, name="db", help="Managed databases")
 app.add_typer(redis_app, name="redis", help="Managed Redis")
+app.add_typer(k8s_app, name="k8s", help="Managed Kubernetes")
 app.add_typer(app_platform_app, name="app", help="App platform")
 app.add_typer(iot_app, name="iot", help="IoT platform")
 app.add_typer(shell_app, name="shell", help="CloudShell")
+app.add_typer(impact_app, name="impact", help="Impact: forests, trees, contributions")
 
 # Top-level shortcuts for login/logout/whoami
 app.command("login")(login)

@@ -65,20 +65,10 @@ def database_info(
     c = get_client(token)
     data = sdk_call(c.database.get, db_type, name)
 
-    # Merge credentials if available
-    try:
-        creds = c.database.credentials(db_type, name)
-        if isinstance(creds, dict):
-            data.update(creds)
-    except Exception as e:
-        import sys
-        print(f"Warning: could not fetch credentials: {e}", file=sys.stderr)
-
     print_object(data, [
         ("name", "Name"), ("type", "Type"), ("tier", "Tier"), ("status", "Status"),
         ("size_mb", "Size (MB)"), ("host", "Host"), ("port", "Port"),
-        ("username", "Username"), ("password", "Password"), ("database", "Database"),
-        ("connection_string", "Connection String"), ("created_at", "Created"),
+        ("created_at", "Created"),
     ])
 
 
@@ -101,3 +91,76 @@ def delete_database(
         print_json(data)
     else:
         print(f"Database {name}: deleted")
+
+
+@app.command("tiers")
+def list_tiers(
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """List available database tiers."""
+    c = get_client(token)
+    data = sdk_call(c.database.tiers)
+    if is_json_mode():
+        print_json(data)
+        return
+    tiers = data if isinstance(data, list) else []
+    for t in tiers:
+        name = t.get("name", t.get("tier", ""))
+        desc = t.get("description", "")
+        print(f"  {name:<16} {desc}")
+
+
+@app.command("firewall")
+def list_firewall(
+    db_type: str = typer.Argument(..., help="Database type (postgresql/mariadb)"),
+    name: str = typer.Argument(..., help="Database name"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """List firewall rules for a database."""
+    c = get_client(token)
+    data = sdk_call(c.database.firewall_rules, db_type, name)
+    rules = data if isinstance(data, list) else []
+    if is_json_mode():
+        print_json(rules)
+        return
+    if not rules:
+        print("No firewall rules.")
+        return
+    rows = [{"id": str(r.get("id", ""))[:12], "ip": r.get("ip_address", ""),
+             "desc": r.get("description", ""), "created": r.get("created_at", "")[:19]}
+            for r in rules]
+    print_table(rows, [("id", "ID", 14), ("ip", "IP Address", 20),
+                       ("desc", "Description", 24), ("created", "Created", 20)])
+
+
+@app.command("firewall-add")
+def add_firewall(
+    db_type: str = typer.Argument(..., help="Database type (postgresql/mariadb)"),
+    name: str = typer.Argument(..., help="Database name"),
+    ip: str = typer.Option(..., "--ip", help="IP address to whitelist"),
+    description: str = typer.Option("", "--description", help="Description"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Add a firewall rule to whitelist an IP address."""
+    c = get_client(token)
+    data = sdk_call(c.database.add_firewall_rule, db_type, name, ip_address=ip, description=description)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"Firewall rule added: {ip}")
+
+
+@app.command("firewall-remove")
+def remove_firewall(
+    db_type: str = typer.Argument(..., help="Database type (postgresql/mariadb)"),
+    name: str = typer.Argument(..., help="Database name"),
+    rule_id: str = typer.Option(..., "--rule-id", help="Rule ID"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Remove a firewall rule."""
+    c = get_client(token)
+    data = sdk_call(c.database.remove_firewall_rule, db_type, name, rule_id)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"Firewall rule {rule_id}: removed")

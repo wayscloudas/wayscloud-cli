@@ -74,14 +74,109 @@ def delete_bucket(
         print(f"Bucket {name}: deleted")
 
 
-@app.command("credentials")
-def show_credentials(
+@app.command("buckets-info")
+def bucket_info(
+    name: str = typer.Argument(..., help="Bucket name"),
     token: Optional[str] = typer.Option(None, "--token", help="Override token"),
 ):
-    """Show S3 credentials."""
+    """Show bucket details."""
     c = get_client(token)
-    data = sdk_call(c.storage.credentials)
-    print_object(data, [
-        ("access_key", "Access Key"), ("secret_key", "Secret Key"),
-        ("endpoint", "Endpoint"), ("region", "Region"),
-    ])
+    data = sdk_call(c.storage.get, name)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print_object(data, [
+            ("bucket_name", "Bucket"), ("tier", "Tier"), ("is_active", "Active"),
+            ("is_public", "Public"), ("total_storage_gb", "Size (GB)"),
+            ("total_objects", "Objects"), ("created_at", "Created"),
+        ])
+
+
+@app.command("keys")
+def list_keys(
+    bucket_name: str = typer.Argument(..., help="Bucket name"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """List API keys for a bucket."""
+    c = get_client(token)
+    data = sdk_call(c.storage.bucket_keys, bucket_name)
+    keys = data if isinstance(data, list) else []
+    if is_json_mode():
+        print_json(keys)
+        return
+    if not keys:
+        print("No keys found.")
+        return
+    rows = [{"id": str(k.get("id", ""))[:12], "name": k.get("name", ""),
+             "access_key": k.get("access_key", ""), "created": k.get("created_at", "")}
+            for k in keys]
+    print_table(rows, [("id", "ID", 14), ("name", "Name", 20),
+                       ("access_key", "Access Key", 24), ("created", "Created", 20)])
+
+
+@app.command("keys-create")
+def create_key(
+    bucket_name: str = typer.Argument(..., help="Bucket name"),
+    name: str = typer.Option(..., "--name", help="Key name"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Create an API key for a bucket. Shows secret key once."""
+    c = get_client(token)
+    data = sdk_call(c.storage.create_bucket_key, bucket_name, name)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print_object(data, [("access_key", "Access Key"), ("secret_key", "Secret Key")])
+        print("\n  Save the secret key now — it cannot be shown again.")
+
+
+@app.command("keys-delete")
+def delete_key(
+    bucket_name: str = typer.Argument(..., help="Bucket name"),
+    key_id: str = typer.Option(..., "--key-id", help="Key ID"),
+    confirm: bool = typer.Option(False, "--confirm", help="Skip confirmation"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Delete a bucket API key (permanent)."""
+    if not confirm:
+        print(f"This will permanently revoke key {key_id}.")
+        print("Use --confirm to proceed.")
+        raise typer.Exit(code=1)
+    c = get_client(token)
+    data = sdk_call(c.storage.delete_bucket_key, bucket_name, key_id)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"Key {key_id}: deleted")
+
+
+@app.command("visibility")
+def set_visibility(
+    bucket_name: str = typer.Argument(..., help="Bucket name"),
+    public: bool = typer.Option(False, "--public/--private", help="Set public or private"),
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """Toggle bucket public/private access."""
+    c = get_client(token)
+    data = sdk_call(c.storage.set_visibility, bucket_name, public)
+    if is_json_mode():
+        print_json(data)
+    else:
+        print(f"Bucket {bucket_name}: {'public' if public else 'private'}")
+
+
+@app.command("tiers")
+def list_tiers(
+    token: Optional[str] = typer.Option(None, "--token", help="Override token"),
+):
+    """List available storage tiers."""
+    c = get_client(token)
+    data = sdk_call(c.storage.tiers)
+    if is_json_mode():
+        print_json(data)
+        return
+    tiers = data if isinstance(data, list) else []
+    for t in tiers:
+        name = t.get("name", t.get("tier", ""))
+        desc = t.get("description", "")
+        print(f"  {name:<16} {desc}")
