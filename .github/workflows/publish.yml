@@ -22,8 +22,27 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install build tools
-        run: pip install build
+      - name: Install build tools and test tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build pytest
+          pip install -e .
+
+      - name: Verify version parity (pyproject == setup.cfg == __version__ == tag)
+        run: |
+          python - <<'PYT'
+          import configparser, os, re, pathlib
+          expected = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          project = re.search(r'(?m)^version = "([^"]+)"', pathlib.Path("pyproject.toml").read_text()).group(1)
+          cfg = configparser.ConfigParser(); cfg.read("setup.cfg")
+          legacy = cfg["metadata"]["version"]
+          ns = {}; exec(pathlib.Path("wayscloud_cli/__init__.py").read_text(), ns)
+          assert project == legacy == ns["__version__"] == expected, (project, legacy, ns["__version__"], expected)
+          print("version parity OK:", expected)
+          PYT
+
+      - name: Run tests
+        run: pytest -q tests/
 
       - name: Build package
         run: python -m build

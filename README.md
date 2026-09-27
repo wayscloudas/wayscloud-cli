@@ -8,7 +8,7 @@ Command-line interface for [WAYSCloud](https://wayscloud.services). Built on the
 pip install wayscloud-cli
 ```
 
-Version 0.5.0 adds Managed Kubernetes (`cloud k8s …`) and requires SDK `wayscloud>=0.4.0`.
+Version 0.6.0 adds the upgrade preflight (`cloud k8s preflight`, non-zero exit on blockers) and requires SDK `wayscloud>=0.5.0`.
 
 ## Authentication
 
@@ -93,6 +93,8 @@ cloud k8s list
 cloud k8s create shop --pool k8s-node-2c4g:2 --plan k8s-cluster-dev --region no --wait
 cloud k8s info <cluster-id>
 cloud k8s kubeconfig <cluster-id> -o ~/.kube/shop.yaml   # written with mode 0600
+cloud k8s preflight <cluster-id> 1.35                  # blockers/warnings; exit != 0 on blockers
+cloud k8s upgrade <cluster-id> 1.35 --mode next-maintenance-window --backup-first
 cloud k8s scale <cluster-id> default 4
 cloud k8s add-pool <cluster-id> batch --plan k8s-node-4c16g --count 2 \
   --label role=worker --taint dedicated=gpu:NoSchedule --ssh-key-id <key-id>

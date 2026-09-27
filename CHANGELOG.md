@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 — 2026-09-27
+
+- **`cloud k8s preflight <cluster-id> <version>`** — the pre-upgrade check:
+  blockers and advisory warnings before anything starts. Supports `--mode`,
+  `--at`, `--strategy` and `--backup-first` like `upgrade`; `--json` prints
+  the full API response; **blockers exit non-zero** so pipelines can gate on it.
+- Requires `wayscloud>=0.5.0` (the SDK adds `upgrade_preflight()`).
+- Version sources synced: `pyproject.toml` == `setup.cfg` == `__version__`,
+  pinned by a test and by a publish-workflow step; the tests run before build.
+
 ## 0.5.0
 
 - **Managed Kubernetes**: new `cloud k8s` command group with all 17 commands:
