@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from unittest.mock import patch
 
 from typer.testing import CliRunner
@@ -13,19 +14,28 @@ from wayscloud_cli.output import set_json_mode, is_json_mode
 
 runner = CliRunner()
 
+# Rich styles option names with ANSI codes when color is forced (CI sets
+# FORCE_COLOR-like variables), splitting e.g. '--token' across sequences.
+# Assertions read the plain text so they are environment-independent.
+_ANSI = re.compile(r'\x1b\[[0-9;]*m')
+
+
+def plain(text):
+    return _ANSI.sub('', text)
+
 
 # ── App structure ───────────────────────────────────────────────
 
 def test_app_has_help():
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "WAYSCloud CLI" in result.output
+    assert "WAYSCloud CLI" in plain(result.output)
 
 
 def test_version_flag():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert __version__ in result.output
+    assert __version__ in plain(result.output)
 
 
 # ── Command groups registered ───────────────────────────────────
@@ -36,7 +46,7 @@ EXPECTED_GROUPS = ["auth", "vps", "dns", "storage", "db", "redis", "app", "iot",
 def test_all_command_groups_registered():
     result = runner.invoke(app, ["--help"])
     for group in EXPECTED_GROUPS:
-        assert group in result.output, f"Command group '{group}' not in help output"
+        assert group in plain(result.output), f"Command group '{group}' not in help output"
 
 
 def test_each_group_has_help():
@@ -50,7 +60,7 @@ def test_each_group_has_help():
 def test_login_shortcut_exists():
     result = runner.invoke(app, ["login", "--help"])
     assert result.exit_code == 0
-    assert "token" in result.output.lower()
+    assert "token" in plain(result.output).lower()
 
 
 def test_whoami_shortcut_exists():
@@ -110,14 +120,14 @@ def test_json_flag_accepted():
 def test_vps_list_help():
     result = runner.invoke(app, ["vps", "list", "--help"])
     assert result.exit_code == 0
-    assert "--token" in result.output
+    assert "--token" in plain(result.output)
 
 
 def test_vps_create_requires_flags():
     result = runner.invoke(app, ["vps", "create", "--help"])
     assert result.exit_code == 0
     for flag in ["--hostname", "--plan", "--region", "--os"]:
-        assert flag in result.output, f"Missing {flag} in vps create"
+        assert flag in plain(result.output), f"Missing {flag} in vps create"
 
 
 # ── DNS commands ────────────────────────────────────────────────
@@ -125,8 +135,8 @@ def test_vps_create_requires_flags():
 def test_dns_records_create_has_type_flag():
     result = runner.invoke(app, ["dns", "records-create", "--help"])
     assert result.exit_code == 0
-    assert "--type" in result.output
-    assert "--value" in result.output
+    assert "--type" in plain(result.output)
+    assert "--value" in plain(result.output)
 
 
 # ── DB commands ─────────────────────────────────────────────────
@@ -134,7 +144,7 @@ def test_dns_records_create_has_type_flag():
 def test_db_create_has_type_flag():
     result = runner.invoke(app, ["db", "create", "--help"])
     assert result.exit_code == 0
-    assert "--type" in result.output
+    assert "--type" in plain(result.output)
 
 
 # ── IoT commands ────────────────────────────────────────────────
@@ -142,8 +152,8 @@ def test_db_create_has_type_flag():
 def test_iot_devices_create_has_required_flags():
     result = runner.invoke(app, ["iot", "devices-create", "--help"])
     assert result.exit_code == 0
-    assert "--device-id" in result.output
-    assert "--name" in result.output
+    assert "--device-id" in plain(result.output)
+    assert "--name" in plain(result.output)
 
 
 # ── Impact commands ─────────────────────────────────────────────
@@ -153,27 +163,27 @@ def test_impact_subgroups_registered():
     result = runner.invoke(app, ["impact", "--help"])
     assert result.exit_code == 0
     for sub in ("forest", "tree", "commitments"):
-        assert sub in result.output, f"Missing impact subgroup: {sub}"
+        assert sub in plain(result.output), f"Missing impact subgroup: {sub}"
 
 
 def test_impact_tree_grow_has_count_flag():
     result = runner.invoke(app, ["impact", "tree", "grow", "--help"])
     assert result.exit_code == 0
-    assert "--count" in result.output
-    assert "--idempotency-key" in result.output
+    assert "--count" in plain(result.output)
+    assert "--idempotency-key" in plain(result.output)
 
 
 def test_impact_forest_create_help():
     result = runner.invoke(app, ["impact", "forest", "create", "--help"])
     assert result.exit_code == 0
     # Argument should be the forest name; --token override always accepted.
-    assert "--token" in result.output
+    assert "--token" in plain(result.output)
 
 
 def test_impact_forest_status_has_visualize():
     result = runner.invoke(app, ["impact", "forest", "status", "--help"])
     assert result.exit_code == 0
-    assert "--visualize" in result.output
+    assert "--visualize" in plain(result.output)
 
 
 def test_impact_forbidden_strings_not_in_help():
@@ -194,6 +204,6 @@ def test_impact_forbidden_strings_not_in_help():
         result = runner.invoke(app, sub_path)
         assert result.exit_code == 0, f"help failed for {sub_path}"
         for s in forbidden:
-            assert s not in result.output, (
+            assert s not in plain(result.output), (
                 f"Forbidden string {s!r} appeared in help for {sub_path}"
             )
